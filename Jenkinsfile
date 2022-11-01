@@ -68,7 +68,7 @@ pipeline {
   }
   stages {
     stage('Checkout SCM') {
-      when { expression { true } }
+      when { expression { false } }
       steps {
         container('git'){ 
           git branch: 'main', 
@@ -189,8 +189,8 @@ pipeline {
         }
       }
     }
-    stage('Deploy to Kubernetes') { 
-      when { expression { true } }
+    stage('Deploy to Kubernetes via manifests') { 
+      when { expression { false } }
       steps{ 
         container('kubectl-helm-cli'){ 
           withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'k8s', namespace: '', serverUrl: '') {
@@ -198,6 +198,42 @@ pipeline {
           }
         }
       }
+    }
+    stage('Deploy to Kubernetes via helm') { 
+      when { expression { false } }
+      steps{ 
+        container('kubectl-helm-cli'){ 
+          withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'k8s', namespace: '', serverUrl: '') {
+            sh "helm upgrade --install petclinic petclinic-chart/ "
+          }
+        }
+      }
+    }
+    stage('Deploy to Kubernetes via helm using nexus') { 
+      when { expression { false } }
+      steps{ 
+        container('kubectl-helm-cli'){ 
+          withKubeConfig(caCertificate: '', clusterName: '', contextName: '', credentialsId: 'k8s', namespace: '', serverUrl: '') {
+            sh "helm repo add helm-hosted http://admin:#Realistic123@143.244.196.128:8081/repository/helm-hosted/"
+            sh "helm repo update"
+            sh "helm install test helm-hosted/petclinic-chart --set image.tag=latest"
+          }
+        }
+      }
+    }
+  }
+  post {
+    failure {
+      mail to: 'donwaikay@gmail.com',
+      from: 'jenkinsadmin@gmail.com',
+      subject: "Jenkins pipeline has failed for job ${env.JOB_NAME}",
+      body: "Check build logs at ${env.BUILD_URL}"
+    }
+    success {
+      mail to: 'donwaikay@gmail.com',
+      from: 'jenkinsadmin@gmail.com',
+      subject: "Jenkins pipeline for job ${env.JOB_NAME} is completed successfully",
+      body: "Check build logs at ${env.BUILD_URL}"
     }
   }
 }
